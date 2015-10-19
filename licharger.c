@@ -24,29 +24,6 @@ int main ( void ) {
 
 	}
 
-	while(1){
-
-		batteryVoltage = readVoltage();
-
-	}
-
-	if(readVoltage() < VLOWLIMIT){
-
-		powerdown();
-
-	}
-
-	if((state>>USBCONNECTED) & 1){
-
-		charge();
-
-	}
-
-	//Enable LED
-	DDRB = 1<<DDB3;
-	PORTB = 1<<PORTB3;
-
-
 }
 
 
@@ -120,10 +97,38 @@ uint16_t readVoltage(void){
 
 
 /*
+
+
 	Interrupt catching
+
+
 */
 
-//Catching WatchDog interrupts
+/*	[--WatchDog interrupts--]
+	
+	Watchdog is used for running the main code. To reduce power consumption, the processor
+		is put to sleep most of the time. When the watchdog timer runs out, there are
+		the following options:
+
+	- ALWAYS: Read the battery voltage
+
+	- If USB is connected: start charging logic - _TURNS WATCHDOG FUNCTION OFF_
+		- Turn circuit on: everything is powered anyway :)
+		- Constant current, when V(bat) < 4.0
+		- Constant voltage, when V(bat) > 4.2
+		- Finish charging when V(bat) = 4.2
+		- Do not START charging if V(bat) > 4.2
+		- ??? Use watchdog for LED indication ???
+
+	- If 3.2 < V(bat) < 4.0: allow circuit power.
+		- Turn on an interrupt on RESET-pin, connected to a "circuit-on" button
+			When the button is pressed, the circuit-on funciton is enabled.
+			[POWER OFF???]
+
+	- If V(bat) < 3.2: disallow circuit power, and turn off the ATtiny (this chip).
+		Turn on interrupt on connected USB. This will reduce power as much as possible.
+
+*/
 ISR ( WDT_vect ) {
 
 	PORTB ^= 1<<PORTB3;
