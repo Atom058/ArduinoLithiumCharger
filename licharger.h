@@ -26,4 +26,26 @@ void stopWatchdog(void);
 #define CHARGING 2
 #define BATTERYDEPLETED 3
 
+/*PINS AND HOW THEY ARE USED
+	pin 1: 
+		RESET | when signal low - used for programming
+		PB5 | Toggle signal LED
+	pin 2: 
+		PCINT3 | Pin-change interrupt
+		PB3 | Digital IN
+	pin 3:
+		PB4 | Circuit enable
+	pin 4: 
+		GND
+	pin 5: 
+		PB0 | Enable constant current charging
+	pin 6: 
+		PB1 | Enable constant voltage charging
+	pin 7: 	
+		ADC1 | Measure battery voltage
+		PB2 | Disabled
+	pin 8: 
+		VCC
+*/
+
 #endif

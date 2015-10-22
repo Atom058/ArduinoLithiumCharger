@@ -83,28 +83,6 @@ void setup(void) {
 	MCUCR &= ~(1<<SM0);
 	MCUCR |= (1<<SM1);
 
-/*PINS AND HOW THEY ARE USED
-	pin 1: 
-		RESET | when signal low - used for programming
-		PB5 | Toggle signal LED
-	pin 2: 
-		PCINT3 | Pin-change interrupt
-		PB3 | Digital IN
-	pin 3:
-		PB4 | Circuit enable
-	pin 4: 
-		GND
-	pin 5: 
-		PB0 | Enable constant current charging
-	pin 6: 
-		PB1 | Enable constant voltage charging
-	pin 7: 	
-		ADC1 | Measure battery voltage
-		PB2 | Disabled
-	pin 8: 
-		VCC
-*/
-
 /*PORTB Pin settings*/
 	//Configure input or output
 	PORTB = 0; //Disables all lingering outputs and pull-ups
@@ -211,8 +189,11 @@ uint16_t readVoltage(){
 
 	// }
 	
-	//Make sure that the ADC is enabled
+	//Make sure that the ADC is powered and enabled
 	ADCSRA |= (1<<ADEN);
+	// IF defines were working, the following is equivalent and easier to understand:
+	//  PRR |= (1<<PRADC);
+	_SFR_IO8(0x25) |= (1<<0);
 
 	//Make sure internal bandgap has stabilized
 	_delay_loop_1(BANDGAPDELAY);
@@ -278,12 +259,9 @@ To reduce power consumption, the processor is put to sleep most of the time.
 
 	- If USB is connected: start charging logic - _TURNS WATCHDOG FUNCTION OFF_
 		- Blinking LED when charging
-		- Constant LED when not charging 
+		- Constant LED when not charging (battery full)
 
 	- If 3.2 < V(bat) < 4.2: allow circuit power.
-		- [NO!] Turn on an interrupt on RESET-pin, connected to a "circuit-on" button
-			When the on-button is pressed, the circuit-on funciton is enabled: voltage on pin is LOGIC
-			When the off-button is pressed, the circuit-on funciton is disabled: voltage on pin is GROUND
 
 	- If V(bat) < 3.2: disallow circuit power, and turn off the ATtiny (this chip).
 		Turn on interrupt on connected USB. This will reduce power as much as possible.
@@ -319,7 +297,7 @@ ISR ( WDT_vect ) {
 
 		//Turn of LED, and for safety (and because it doesn't cost anything)
 		//	any charge pin settings
-		PORTB &= !((1<<PORTB3) | (1<<PORTB1) | (1<<PORTB0));
+		PORTB &= ~((1<<PORTB3) | (1<<PORTB1) | (1<<PORTB0));
 
 		batteryVoltage = readVoltage();
 
