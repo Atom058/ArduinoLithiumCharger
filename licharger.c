@@ -1,18 +1,6 @@
 #include <licharger.h>
 
-//Definitions
-#define VLOWLIMIT 500 //Voltage where battery is considered depleted - 3.2V
-#define VHIGHLIMIT 1000 //Charge to this voltage - 4.15V
-#define VCVLIMIT 850 //Voltage limit where charging switches from constant current to constant voltage.
-#define VCHARGELIMIT 850 //Voltage above which charging will not initiate - 4.0V
-#define BANDGAPDELAY 50 //Calculated as follows: Takes three CPU cycles per loop, and 100us needed
-
-//Booleans
 uint8_t state = 0;
-#define USBCONNECTED 1
-#define CHARGING 2
-#define BATTERYDEPLETED 3
-
 uint16_t batteryVoltage = 0;
 
 int main ( void ) {
