@@ -12,7 +12,6 @@ int main ( void ) {
 
 		if((state>>USBCONNECTED) & 1){
 			
-			batteryVoltage = readVoltage();
 			//Turn on circuit power
 			PORTB |= (1<<PORTB4);
 
@@ -26,29 +25,22 @@ int main ( void ) {
 
 				//Charging logic
 				
-				if(batteryVoltage < VCVLIMIT){
+				if(batteryVoltage > VLOWLIMIT){
 
-					//Charge with constant current below VCVLIMIT
-					PORTB &= ~(1<<PORTB1); //Turn off constant voltage pin
-					PORTB |= (1<<PORTB0); //Turn on constant current pin
+					//battery is no longer considered empty
+					state &= ~(1<<BATTERYDEPLETED);
 
-					if(batteryVoltage > VLOWLIMIT){
+				}
 
-						//battery is no longer completely empty
-						state &= ~(1<<BATTERYDEPLETED);
+				if (batteryVoltage < VCHARGELIMIT){
 
-					}
+					PORTB |= (1<<PORTB0); //Turn on charging
 
-				} else if (batteryVoltage < VHIGHLIMIT){
-
-					PORTB &= ~(1<<PORTB0); //Turn off constant current pin
-					PORTB |= (1<<PORTB1); //Turn on constant voltage pin
-
-				} else {
+				} else if (batteryVoltage > VHIGHLIMIT){
 
 					//If VHIGHLIMIT has been reached, charging should stop
 					state &= ~(1<<CHARGING);
-					PORTB &= ~((1<<PORTB0) | (1<<PORTB1));
+					PORTB &= ~(1<<PORTB0);
 
 				}
 
@@ -76,17 +68,17 @@ void setup(void) {
 //POWER SETTINGS
 	//Disable the Analog Comparator circuit 
 	//	Note: this is not the ADEN bit, so the CONVERTER is still active
-	ACSR &= ~(1<<ACIE); //Disables the interrupt; should strictly be unnecessary
+	ACSR &= ~(1<<ACIE); //Disables the interrupt to avoid disturbance
 	ACSR |= (1<<ACD); //Disable Comparator
 
-	//Enable deep, power-down mode, sleep as default
+	//Enable deep sleep, i.e. power-down mode, as default
 	MCUCR &= ~(1<<SM0);
 	MCUCR |= (1<<SM1);
 
 /*PORTB Pin settings*/
 	//Configure input or output
 	PORTB = 0; //Disables all lingering outputs and pull-ups
-	DDRB = (1<<DDB0) | (1<<DDB1) | (0<<DDB2) | (0<<DDB3) | (1<<DDB4) | (1<<DDB5);
+	DDRB = (1<<DDB0) | (1<<DDB1) | (0<<DDB2) | (0<<DDB3) | (1<<DDB4) | (0<<DDB5);
 
 /*Interrupts*/
 
@@ -188,6 +180,9 @@ uint16_t readVoltage(){
 	// 		return 0;
 
 	// }
+
+	//Enable power to sense pin
+	PORTB |= (1<<PORTB1);
 	
 	//Make sure that the ADC is powered and enabled
 	ADCSRA |= (1<<ADEN);
@@ -207,6 +202,9 @@ uint16_t readVoltage(){
 	//Save reading to memory
 	uint16_t reading = ADCL;
 	reading |= (ADCH<<8);
+
+	//Disable power to sense pin
+	PORTB &= ~(1<<PORTB1);
 
 	return reading;
 
@@ -232,8 +230,8 @@ void sleep(void){
 	//General powerdown
 	ADCSRA &= ~(1<<ADEN); //ADC off
 	//Turn of ADC and Timer0
-	// IF defines were working, the following is equivalent and easier to understand:
-	//  PRR |= (1<<PRADC) | (1<<PRTIM0);
+	// IF 'define' was working, the following is equivalent and "easier" to understand:
+	// 		PRR |= (1<<PRADC) | (1<<PRTIM0);
 	_SFR_IO8(0x25) |= (1<<0) | (1<<1);
 
 	sei(); //Enable interrupts again
@@ -257,9 +255,7 @@ void sleep(void){
 
 To reduce power consumption, the processor is put to sleep most of the time. 
 
-	- If USB is connected: start charging logic - _TURNS WATCHDOG FUNCTION OFF_
-		- Blinking LED when charging
-		- Constant LED when not charging (battery full)
+	- If USB is connected: start charging logic - Does nothing
 
 	- If 3.2 < V(bat) < 4.2: allow circuit power.
 
@@ -272,6 +268,8 @@ ISR ( WDT_vect ) {
 	//Disable sleep
 	MCUCR &= ~(1<<SE);
 
+	batteryVoltage = readVoltage();
+
 	if((state>>USBCONNECTED) & 1){
 
 		if((PINB>>PINB3) ^ 1){
@@ -279,27 +277,13 @@ ISR ( WDT_vect ) {
 			//Fool-proofing: check USB-connected pin to make sure that interrupt wasn't faulty
 			//	This is done to make sure power conservation is activated properly
 			state &= ~(1<<USBCONNECTED | 1<<CHARGING);
-			PORTB &= ~((1<<PORTB0) | (1<<PORTB1));
+			PORTB &= ~(1<<PORTB0);
 
-		} else if((state>>CHARGING) & 1){
-			
-			//Blink signal light if the battery is charging
-			PORTB ^= 1<<PORTB3;
+		} 
 
-		} else {
-
-			//When charging is done, signal light should be constant on
-			PORTB |= 1<<PORTB3;
-
-		}		
+		//Do nothing of importance...
 
 	} else {
-
-		//Turn of LED, and for safety (and because it doesn't cost anything)
-		//	any charge pin settings
-		PORTB &= ~((1<<PORTB3) | (1<<PORTB1) | (1<<PORTB0));
-
-		batteryVoltage = readVoltage();
 
 		if(batteryVoltage < VLOWLIMIT){
 
@@ -334,11 +318,12 @@ ISR ( PCINT0_vect ){
 
 	if((PINB>>PINB3) & 1){
 
+		//Read voltage on PORTB3, if high, usb is connected
 		state |= (1<<USBCONNECTED);
 
 	} else {
 
-		//Reset all charging logic
+		//Reset all charging logic, USB was removed
 		state &= ~(1<<USBCONNECTED | 1<<CHARGING);
 		PORTB &= ~((1<<PORTB0) | (1<<PORTB1));
 

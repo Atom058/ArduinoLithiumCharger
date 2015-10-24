@@ -15,11 +15,18 @@ void startWatchdog(void);
 void stopWatchdog(void);
 
 //Constants
-#define VLOWLIMIT 500 //Voltage where battery is considered depleted - 3.2V
-#define VHIGHLIMIT 1000 //Charge to this voltage - 4.15V
-#define VCVLIMIT 850 //Voltage limit where charging switches from constant current to constant voltage.
-#define VCHARGELIMIT 850 //Voltage above which charging will not initiate - 4.0V
 #define BANDGAPDELAY 50 //Calculated as follows: Takes three CPU cycles per loop, and 100us needed
+	/*Voltages:
+		- Using the 1.1V interal reference
+		- Voltage divider of 43k + 12k = 0.218 ratio
+		- 0V < Vsense < 5.04V, with a resolution of ~5mV (4.92mV) per step
+		- Low battery is considered to be 3.2V, giving 650/1024
+		- Full battery is considered to be 4.2V, giving 853/1024
+		- Charge limit, i.e. level above which new charging will not start, is set at 4.0V, giving 812/1024
+	*/
+#define VLOWLIMIT 650 //Voltage where battery is considered depleted
+#define VHIGHLIMIT 853 //Charge to this voltage - 4.15V
+#define VCHARGELIMIT 812 //Voltage above which charging will not initiate - 4.0V
 
 //Booleans - Stored in state variable
 #define USBCONNECTED 1
@@ -29,19 +36,18 @@ void stopWatchdog(void);
 /*PINS AND HOW THEY ARE USED
 	pin 1: 
 		RESET | when signal low - used for programming
-		PB5 | Toggle signal LED
-	pin 2: 
+	pin 2: INPUT
 		PCINT3 | Pin-change interrupt
 		PB3 | Digital IN
-	pin 3:
+	pin 3: OUTPUT
 		PB4 | Circuit enable
 	pin 4: 
 		GND
-	pin 5: 
-		PB0 | Enable constant current charging
-	pin 6: 
-		PB1 | Enable constant voltage charging
-	pin 7: 	
+	pin 5: OUTPUT
+		PB1 | Toggle battery sense ciruit
+	pin 6: OUTPUT
+		PB0 | Enable charging
+	pin 7: 	INPUT
 		ADC1 | Measure battery voltage
 		PB2 | Disabled
 	pin 8: 
