@@ -15,7 +15,7 @@ int main ( void ) {
 			//Turn on circuit power
 			PORTB |= (1<<PORTB4);
 
-			if( ((state>>CHARGING) ^ 1) && (batteryVoltage < VCHARGELIMIT)){
+			if( !((state>>CHARGING) & 1) && (batteryVoltage < VCHARGELIMIT)){
 
 				// If the battery is not yet charging, AND below the charge limit
 				state |= (1<<CHARGING);
@@ -65,10 +65,12 @@ void setup(void) {
 	cli();
 	wdt_reset();
 
+	state = 0;
+
 //POWER SETTINGS
 	//Disable the Analog Comparator circuit 
 	//	Note: this is not the ADEN bit, so the CONVERTER is still active
-	ACSR &= ~(1<<ACIE); //Disables the interrupt to avoid disturbance
+	ACSR &= ~(1<<ACIE); //Disables the interrupt to avoid disturbance during setup
 	ACSR |= (1<<ACD); //Disable Comparator
 
 	//Enable deep sleep, i.e. power-down mode, as default
@@ -79,6 +81,12 @@ void setup(void) {
 	//Configure input or output
 	PORTB = 0; //Disables all lingering outputs and pull-ups
 	DDRB = (1<<DDB0) | (1<<DDB1) | (0<<DDB2) | (0<<DDB3) | (1<<DDB4) | (0<<DDB5);
+
+	if((PINB>>PINB3) & 1){
+
+		state |= (1<<USBCONNECTED);
+
+	}
 
 /*Interrupts*/
 
@@ -115,6 +123,8 @@ void setup(void) {
 
 	*/
 	ADCSRA = (0<<ADATE) | (0<<ADIE) | (0<<ADPS2) | (1<<ADPS1) | (1<<ADPS0);
+
+	batteryVoltage = readVoltage();
 
 //Enable interrupts again
 	sei();
@@ -270,20 +280,17 @@ ISR ( WDT_vect ) {
 
 	batteryVoltage = readVoltage();
 
-	if((state>>USBCONNECTED) & 1){
+	if((PINB>>PINB3) & 1){
 
-		if((PINB>>PINB3) ^ 1){
-
-			//Fool-proofing: check USB-connected pin to make sure that interrupt wasn't faulty
-			//	This is done to make sure power conservation is activated properly
-			state &= ~(1<<USBCONNECTED | 1<<CHARGING);
-			PORTB &= ~(1<<PORTB0);
-
-		} 
-
-		//Do nothing of importance...
+		//Fool-proofing: check USB-connected pin to make sure that interrupt wasn't faulty
+		//	This is done to make sure power conservation is activated properly
+		state |= (1<<USBCONNECTED);
 
 	} else {
+
+		//Turn of charging stuff
+		state &= ~((1<<USBCONNECTED) | (1<<CHARGING));
+		PORTB &= ~(1<<PORTB0);
 
 		if(batteryVoltage < VLOWLIMIT){
 
