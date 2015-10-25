@@ -14,7 +14,7 @@ int main ( void ) {
 		if((PINB>>PINB3) & 1){
 			
 			//Turn on circuit power
-			PORTB |= (1<<PORTB4);
+			PORTB |= (1<<CIRCUITPIN);
 
 			if( !((state>>CHARGING) & 1) && (batteryVoltage < VCHARGELVL)){
 
@@ -34,13 +34,13 @@ int main ( void ) {
 
 				if (batteryVoltage < VCHARGELVL){
 
-					PORTB |= (1<<PORTB1); //Turn on charging
+					PORTB |= (1<<CHARGEPIN); //Turn on charging
 
 				} else if (batteryVoltage >= VHIGHLVL){
 
 					//If VHIGHLVL has been reached, charging should stop
 					state &= ~(1<<CHARGING);
-					PORTB &= ~(1<<PORTB1);
+					PORTB &= ~(1<<CHARGEPIN);
 
 				}
 
@@ -154,7 +154,7 @@ void stopWatchdog(){
 uint16_t readVoltage(){
 
 	//Enable power to sense circuit
-	PORTB |= (1<<PORTB0);
+	PORTB |= (1<<VOLTAGESENSEPIN);
 	
 	//Make sure that the ADC is powered and enabled
 	PRR &= ~(1<<PRADC);
@@ -170,15 +170,12 @@ uint16_t readVoltage(){
 		//Wait for conversion to finish
 	}
 
-	//Reset conversion-done flag
-	state &= ~(1<<ADCDONE);
-
 	//Save reading to memory
 	uint16_t reading = (uint16_t) ADCL;
 	reading |= (ADCH<<sizeof(ADCH));
 
 	//Disable power to sense pin
-	PORTB &= ~(1<<PORTB0);
+	PORTB &= ~(1<<VOLTAGESENSEPIN);
 
 	return reading;
 
@@ -257,18 +254,18 @@ ISR ( WDT_vect ) {
 
 		//Turn of charging stuff
 		state &= ~(1<<CHARGING);
-		PORTB &= ~(1<<PORTB0);
+		PORTB &= ~(1<<CHARGEPIN);
 
 		if(batteryVoltage < VLOWLVL){
 
 			state |= (1<<BATTERYDEPLETED);
 			//Disable circuit power
-			PORTB &= ~(1<<PORTB4);
+			PORTB &= ~(1<<CIRCUITPIN);
 
 		} else {
 
 			//Enable circuit power
-			PORTB |= (1<<PORTB4);
+			PORTB |= (1<<CIRCUITPIN);
 
 		}
 
@@ -294,7 +291,7 @@ ISR ( PCINT0_vect ){
 
 		//Reset all charging logic, USB was removed
 		state &= ~(1<<CHARGING);
-		PORTB &= ~(1<<PORTB1);
+		PORTB &= ~(1<<CHARGEPIN);
 
 	} 
 

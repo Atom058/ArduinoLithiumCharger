@@ -37,6 +37,11 @@ void stopWatchdog(void);
 #define PRADC 0
 #define PRTIM0 1
 
+//Define PORTB pins to avoid errors in code
+#define VOLTAGESENSEPIN PORTB0
+#define CHARGEPIN PORTB1
+#define CIRCUITPIN PORTB4
+
 /*PINS AND HOW THEY ARE USED
 	pin 1: 
 		RESET | when signal low - used for programming
