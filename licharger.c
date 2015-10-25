@@ -2,7 +2,7 @@
 
 uint8_t state = 0;
 
-const uint8_t BANDGAPDELAY = 50;
+const uint8_t bandgapDelay = BANDGAPDELAY;
 
 const uint16_t vLowLimit = VLOWLVL;
 const uint16_t vHighLimit = VHIGHLVL;
@@ -90,6 +90,7 @@ void setup(void) {
 
 	if((PINB>>PINB3) & 1){
 
+		//Set start-up USB state
 		state |= (1<<USBCONNECTED);
 
 	}
@@ -128,7 +129,7 @@ void setup(void) {
 		//TODO update this if CPU speed is adjusted
 
 	*/
-	ADCSRA = (0<<ADATE) | (0<<ADIE) | (0<<ADPS2) | (1<<ADPS1) | (1<<ADPS0);
+	ADCSRA = (0<<ADATE) | (1<<ADIE) | (0<<ADPS2) | (1<<ADPS1) | (1<<ADPS0);
 
 	batteryVoltage = readVoltage();
 
@@ -197,23 +198,27 @@ uint16_t readVoltage(){
 
 	// }
 
-	//Enable power to sense pin
+	//Enable power to sense circuit
 	PORTB |= (1<<PORTB1);
 	
-	//Make sure that the ADC is powered and enabled
-	ADCSRA |= (1<<ADEN);
 	// IF defines were working, the following is equivalent and easier to understand:
 	//  PRR |= (1<<PRADC);
 	_SFR_IO8(0x25) |= (1<<0);
+	//Make sure that the ADC is powered and enabled
+	ADCSRA |= (1<<ADEN);
 
 	//Make sure internal bandgap has stabilized
-	_delay_loop_1(BANDGAPDELAY);
+	_delay_loop_1(bandgapDelay);
 
 	//Start voltage conversion
 	ADCSRA |= (1<<ADSC);
 
-	//Wait for conversion to finish
-	while((ADCSRA>>ADSC) & 1){}
+	while(!((state>>ADCDONE) & 1)){
+		//Wait for conversion to finish
+	}
+
+	//Reset conversion-done flag
+	state &= ~(1<<ADCDONE);
 
 	//Save reading to memory
 	uint16_t reading = ADCL;
@@ -245,12 +250,14 @@ void sleep(void){
 
 	//General powerdown
 	ADCSRA &= ~(1<<ADEN); //ADC off
-	//Turn of ADC and Timer0
-	// IF 'define' was working, the following is equivalent and "easier" to understand:
-	// 		PRR |= (1<<PRADC) | (1<<PRTIM0);
-	_SFR_IO8(0x25) |= (1<<0) | (1<<1);
+	//Turn off ADC and Timer0
+	PRR |= (1<<PRADC) | (1<<PRTIM0);
 
 	sei(); //Enable interrupts again
+
+	//Sleep command
+	MCUCR |= (1<<SE);
+	asm( "sleep" );
 
 }
 
@@ -284,7 +291,9 @@ ISR ( WDT_vect ) {
 	//Disable sleep
 	MCUCR &= ~(1<<SE);
 
+	cli();
 	batteryVoltage = readVoltage();
+	sei();
 
 	if((PINB>>PINB3) & 1){
 
@@ -343,5 +352,11 @@ ISR ( PCINT0_vect ){
 		sleep();
 
 	}
+
+}
+
+ISR ( ADC_vect ) {
+
+	state |= (1<<ADCDONE);
 
 }

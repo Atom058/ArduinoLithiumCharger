@@ -15,7 +15,7 @@ void startWatchdog(void);
 void stopWatchdog(void);
 
 //Constants
-//#define BANDGAPDELAY 50 //Calculated as follows: Takes three CPU cycles per loop, and 100us needed
+#define BANDGAPDELAY 50 //Calculated as follows: Takes three CPU cycles per loop, and 100us needed
 	/*Voltages:
 		- Using the 1.1V interal reference
 		- Voltage divider of 43k + 12k = 0.218 ratio
@@ -32,6 +32,12 @@ void stopWatchdog(void);
 #define USBCONNECTED 1
 #define CHARGING 2
 #define BATTERYDEPLETED 3
+#define ADCDONE 4
+
+//double define these to make code work
+#define PRR _SFR_IO8(0x25)
+#define PRADC 0
+#define PRTIM0 1
 
 /*PINS AND HOW THEY ARE USED
 	pin 1: 
