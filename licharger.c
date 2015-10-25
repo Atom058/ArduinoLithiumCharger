@@ -2,10 +2,6 @@
 
 uint8_t state = 0;
 
-const uint16_t vLowLimit = VLOWLVL;
-const uint16_t vHighLimit = VHIGHLVL;
-const uint16_t vChargeLimit = VCHARGELVL;
-
 uint16_t batteryVoltage = 0;
 
 int main ( void ) {
@@ -20,7 +16,7 @@ int main ( void ) {
 			//Turn on circuit power
 			PORTB |= (1<<PORTB4);
 
-			if( !((state>>CHARGING) & 1) && (batteryVoltage < vChargeLimit)){
+			if( !((state>>CHARGING) & 1) && (batteryVoltage < VCHARGELVL)){
 
 				// If the battery is not yet charging, AND below the charge limit
 				state |= (1<<CHARGING);
@@ -29,20 +25,20 @@ int main ( void ) {
 
 				//Charging logic
 				
-				if(batteryVoltage > vLowLimit){
+				if(batteryVoltage > VLOWLVL){
 
 					//battery is no longer considered empty
 					state &= ~(1<<BATTERYDEPLETED);
 
 				}
 
-				if (batteryVoltage < vChargeLimit){
+				if (batteryVoltage < VCHARGELVL){
 
 					PORTB |= (1<<PORTB1); //Turn on charging
 
-				} else if (batteryVoltage >= vHighLimit){
+				} else if (batteryVoltage >= VHIGHLVL){
 
-					//If vHighLimit has been reached, charging should stop
+					//If VHIGHLVL has been reached, charging should stop
 					state &= ~(1<<CHARGING);
 					PORTB &= ~(1<<PORTB1);
 
@@ -271,7 +267,7 @@ ISR ( WDT_vect ) {
 		state &= ~((1<<USBCONNECTED) | (1<<CHARGING));
 		PORTB &= ~(1<<PORTB0);
 
-		if(batteryVoltage < vLowLimit){
+		if(batteryVoltage < VLOWLVL){
 
 			state |= (1<<BATTERYDEPLETED);
 			//Disable circuit power
