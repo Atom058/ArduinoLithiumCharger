@@ -107,13 +107,13 @@ void setup(void) {
 		//Select PCINT3 as interrupt source (pin 2)
 		PCMSK = (1<<PCINT3);
 		GIMSK = (1<<PCIE);
-		GIMSK &= ~(0<<INT0)
+		GIMSK &= ~(0<<INT0);
 
 /*Analog to Digital converter settings*/
 	// Set ADC to use 1.1V internal reference and standard right-adjusted results
 	// Set and select ADC1 (pin7) as an input channel and disable as digital
 	// Set ADC3 (pin2) as an input channel
-	ADMUX = (1<<REFS0) | (1<<MUX0);
+	ADMUX |= (1<<REFS0) | (1<<MUX0);
 	ADMUX &= ~((0<<ADLAR) | (0<<MUX1));
 	
 	// Disable Output on ADC1
