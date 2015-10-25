@@ -2,8 +2,6 @@
 
 uint8_t state = 0;
 
-const uint8_t bandgapDelay = BANDGAPDELAY;
-
 const uint16_t vLowLimit = VLOWLVL;
 const uint16_t vHighLimit = VHIGHLVL;
 const uint16_t vChargeLimit = VCHARGELVL;
@@ -40,13 +38,13 @@ int main ( void ) {
 
 				if (batteryVoltage < vChargeLimit){
 
-					PORTB |= (1<<PORTB0); //Turn on charging
+					PORTB |= (1<<PORTB1); //Turn on charging
 
-				} else if (batteryVoltage > vHighLimit){
+				} else if (batteryVoltage >= vHighLimit){
 
 					//If vHighLimit has been reached, charging should stop
 					state &= ~(1<<CHARGING);
-					PORTB &= ~(1<<PORTB0);
+					PORTB &= ~(1<<PORTB1);
 
 				}
 
@@ -69,10 +67,23 @@ void setup(void) {
 
 //Disable interrupts and reset WDT timer to allow setup to finish
 	cli();
-	MCUSR &= ~(1<<WDRF);
-	wdt_reset();
+	
+/*Interrupts*/
 
-	state = 0;
+	/*Watch dog start, firing every 2s */
+		MCUSR &= ~(1<<WDRF); //Clear WD interrupt flag
+		wdt_reset(); // Reset timer
+		WDTCR |= (1<<WDCE) | (1<<WDE);
+		WDTCR = (0<<WDE) | (0<<WDTIE) | (1<<WDP2) | (1<<WDP1) | (1<<WDP0);
+
+		startWatchdog();
+
+	/*USB-sense (pin-chage) interupt*/
+
+		//Select PCINT3 as interrupt source (pin 2)
+		GIMSK = (1<<PCIE); //Enable pin interrupts
+		GIMSK &= ~(1<<INT0); //... but not for INT0
+		PCMSK = (1<<PCINT3);
 
 //POWER SETTINGS
 	//Disable the Analog Comparator circuit 
@@ -83,6 +94,8 @@ void setup(void) {
 	//Enable deep sleep, i.e. power-down mode, as default
 	MCUCR &= ~(1<<SM0);
 	MCUCR |= (1<<SM1);
+
+	PPR = 0; //Initialize this as full-on
 
 /*PORTB Pin settings*/
 	//Configure input or output
@@ -96,28 +109,15 @@ void setup(void) {
 
 	}
 
-/*Interrupts*/
-
-	/*Watch dog start*/
-
-		startWatchdog();
-
-	/*USB-sense (pin-chage) interupt*/
-
-		//Select PCINT3 as interrupt source (pin 2)
-		PCMSK = (1<<PCINT3);
-		GIMSK = (1<<PCIE);
-		GIMSK &= ~(0<<INT0);
 
 /*Analog to Digital converter settings*/
 	// Set ADC to use 1.1V internal reference and standard right-adjusted results
 	// Set and select ADC1 (pin7) as an input channel and disable as digital
 	// Set ADC3 (pin2) as an input channel
-	ADMUX |= (1<<REFS0) | (1<<MUX0);
-	ADMUX &= ~((0<<ADLAR) | (0<<MUX1));
-	
+	ADMUX = (1<<REFS0) | (0<<ADLAR) | (0<<MUX1) | (1<<MUX0);
 	// Disable Output on ADC1
 	DIDR0 = (1<<ADC1D);
+	
 
 
 	/*Set the clock speed for the ADC. Should be between 100 and 200 kHz the 
@@ -132,10 +132,7 @@ void setup(void) {
 		//TODO update this if CPU speed is adjusted
 
 	*/
-	ADCSRA = (1<<ADIE) | (1<<ADPS1) | (1<<ADPS0);
-	ADCSRA &= ~((0<<ADPS2) | (0<<ADATE));
-
-	batteryVoltage = readVoltage();
+	ADCSRA = (0<<ADIE) | (0<<ADATE) | (0<<ADPS2) | (1<<ADPS1) | (1<<ADPS0));
 
 //Enable interrupts again
 	sei();
@@ -144,12 +141,9 @@ void setup(void) {
 
 void startWatchdog(){
 
-	//Reset MCU status register
-	MCUSR &= ~(1<<WDRF);
-
 	//Start watchdog interrupts, firing every 2 seconds
 	WDTCR |= (1<<WDCE) | (1<<WDE);
-	WDTCR =  (1<<WDTIE) | (1<<WDP2) | (1<<WDP1) | (1<<WDP0);
+	WDTCR |= (1<<WDTIE);
 
 }
 
@@ -157,65 +151,34 @@ void stopWatchdog(){
 
 	//Reset MCU status register
 	MCUSR &= ~(1<<WDRF);
+	wdt_reset();
 
-	WDTCR |= (1<<WDCE) | (1<<WDE);	
-	WDTCR = 0; //This disables RESETs being fired
+	WDTCR |= (1<<WDCE) | (1<<WDE); //Enable change mode
+	WDTCR &= ~((1<<WDE) | (1<<WDTIE)); //unset WD
 
 }
 
 
 /*
 	Reads voltage from the battery-voltage port
-		The 
+		Please disable interrupts before this function is run
 */
 uint16_t readVoltage(){
 
-	// THE BELOW SNIPPET IS CURRENTLY NOT USED, BUT CAN BE ACTIVATED IF NEEDED.
-	// Add a 'unit_8 port' argument to the method first
-	// Select the corresponding port for conversion
-	// switch (port){
-
-	// 		//MUX[0:0]
-	// 	case 0:
-	// 		ADMUX &= ~(1<<MUX0 | 1<<MUX1);
-	// 		break;
-
-	// 		//MUX[0:1]
-	// 	case 1:
-	// 		ADMUX |= (1<<MUX0);
-	// 		ADMUX &= ~(1<<MUX1);
-	// 		break;
-
-	// 		//MUX[1:0]
-	// 	case 2:
-	// 		ADMUX &= ~(1<<MUX0);
-	// 		ADMUX |= (1<<MUX1);
-	// 		break;
-
-	// 		//MUX[0:1]
-	// 	case 3:
-	// 		ADMUX |= (1<<MUX0) | (1<<MUX1);
-	// 		break;
-
-	// 	default:
-	// 		return 0;
-
-	// }
-
 	//Enable power to sense circuit
-	PORTB |= (1<<PORTB1);
+	PORTB |= (1<<PORTB0);
 	
-	PRR &= ~(0<<PRADC);
 	//Make sure that the ADC is powered and enabled
+	PRR &= ~(1<<PRADC);
 	ADCSRA |= (1<<ADEN);
 
 	//Make sure internal bandgap has stabilized
-	_delay_loop_1(bandgapDelay);
+	_delay_us(BANDGAPDELAY);
 
 	//Start voltage conversion
 	ADCSRA |= (1<<ADSC);
 
-	while(!((state>>ADCDONE) & 1)){
+	while((ADCSRA>>ADSC) & 1){
 		//Wait for conversion to finish
 	}
 
@@ -223,11 +186,10 @@ uint16_t readVoltage(){
 	state &= ~(1<<ADCDONE);
 
 	//Save reading to memory
-	uint16_t reading = ADCL;
-	reading |= (ADCH<<8);
+	uint16_t reading = ADC;
 
 	//Disable power to sense pin
-	PORTB &= ~(1<<PORTB1);
+	PORTB &= ~(1<<PORTB0);
 
 	return reading;
 
@@ -245,21 +207,21 @@ void sleep(void){
 		 	The watchdog (with its voltage checking) should be disabled.
 			This means that only a pin change can wake the device (i.e. USB Connected)
 		*/
-		wdt_reset();
 		stopWatchdog();
+
 
 	} 
 
-	//General powerdown
-	ADCSRA &= ~(1<<ADEN); //ADC off
-	//Turn off ADC and Timer0
-	PRR |= (1<<PRADC) | (1<<PRTIM0);
+	//ADC off
+	ADCSRA &= ~(1<<ADEN); //Must be disabled before PRADC
+	PRR |= (1<<PRADC);
+	//Turn off Timer0
+	PRR |=  (1<<PRTIM0);
 
+	//Put device to sleep
+	MCUCR |= (1<<SE); //Sleep enabled
 	sei(); //Enable interrupts again
-
-	//Sleep command
-	MCUCR |= (1<<SE);
-	asm( "sleep" );
+	asm( "sleep" ); //Sleep command
 
 }
 
@@ -333,7 +295,7 @@ ISR ( PCINT0_vect ){
 	//Disable sleep
 	MCUCR &= ~(1<<SE);
 
-	if((WDTCR>>WDCE) ^ 1){
+	if((WDTCR>>WDTIE) ^ 1){
 
 		//Start watchdog if it is disabled
 		startWatchdog();
@@ -349,16 +311,8 @@ ISR ( PCINT0_vect ){
 
 		//Reset all charging logic, USB was removed
 		state &= ~(1<<USBCONNECTED | 1<<CHARGING);
-		PORTB &= ~((1<<PORTB0) | (1<<PORTB1));
-
-		sleep();
+		PORTB &= ~(1<<PORTB1);
 
 	}
-
-}
-
-ISR ( ADC_vect ) {
-
-	state |= (1<<ADCDONE);
 
 }

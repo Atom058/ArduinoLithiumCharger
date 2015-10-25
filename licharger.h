@@ -5,7 +5,7 @@
 #include <avr/io.h>
 #include <avr/wdt.h>
 #include <avr/interrupt.h>
-#include <util/delay_basic.h>
+#include <util/delay.h>
 
 //Function declarations
 uint16_t readVoltage(void);
@@ -15,7 +15,7 @@ void startWatchdog(void);
 void stopWatchdog(void);
 
 //Constants
-#define BANDGAPDELAY 50 //Calculated as follows: Takes three CPU cycles per loop, and 100us needed
+#define BANDGAPDELAY 100 //Calculated as follows: 100us needed
 	/*Voltages:
 		- Using the 1.1V interal reference
 		- Voltage divider of 43k + 12k = 0.218 ratio
@@ -50,9 +50,9 @@ void stopWatchdog(void);
 	pin 4: 
 		GND
 	pin 5: OUTPUT
-		PB1 | Toggle battery sense ciruitry
-	pin 6: OUTPUT
 		PB0 | Enable charging
+	pin 6: OUTPUT
+		PB1 | Toggle battery sense ciruitry
 	pin 7: 	INPUT
 		ADC1 | Measure battery voltage
 		PB2 | Disabled
