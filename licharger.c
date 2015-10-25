@@ -95,7 +95,7 @@ void setup(void) {
 	MCUCR &= ~(1<<SM0);
 	MCUCR |= (1<<SM1);
 
-	PPR = 0; //Initialize this as full-on
+	PRR = 0; //Initialize this as full-on
 
 /*PORTB Pin settings*/
 	//Configure input or output
@@ -132,7 +132,7 @@ void setup(void) {
 		//TODO update this if CPU speed is adjusted
 
 	*/
-	ADCSRA = (0<<ADIE) | (0<<ADATE) | (0<<ADPS2) | (1<<ADPS1) | (1<<ADPS0));
+	ADCSRA = (0<<ADIE) | (0<<ADATE) | (0<<ADPS2) | (1<<ADPS1) | (1<<ADPS0);
 
 //Enable interrupts again
 	sei();
