@@ -69,6 +69,7 @@ void setup(void) {
 
 //Disable interrupts and reset WDT timer to allow setup to finish
 	cli();
+	MCUSR &= ~(1<<WDRF);
 	wdt_reset();
 
 	state = 0;
@@ -105,13 +106,15 @@ void setup(void) {
 
 		//Select PCINT3 as interrupt source (pin 2)
 		PCMSK = (1<<PCINT3);
-		GIMSK = (0<<INT0) | (1<<PCIE);
+		GIMSK = (1<<PCIE);
+		GIMSK &= ~(0<<INT0)
 
 /*Analog to Digital converter settings*/
 	// Set ADC to use 1.1V internal reference and standard right-adjusted results
 	// Set and select ADC1 (pin7) as an input channel and disable as digital
 	// Set ADC3 (pin2) as an input channel
-	ADMUX = (1<<REFS0) | (0<<ADLAR) | (0<<MUX1) | (1<<MUX0);
+	ADMUX = (1<<REFS0) | (1<<MUX0);
+	ADMUX &= ~((0<<ADLAR) | (0<<MUX1));
 	
 	// Disable Output on ADC1
 	DIDR0 = (1<<ADC1D);
@@ -129,7 +132,8 @@ void setup(void) {
 		//TODO update this if CPU speed is adjusted
 
 	*/
-	ADCSRA = (0<<ADATE) | (1<<ADIE) | (0<<ADPS2) | (1<<ADPS1) | (1<<ADPS0);
+	ADCSRA = (1<<ADIE) | (1<<ADPS1) | (1<<ADPS0);
+	ADCSRA &= ~((0<<ADPS2) | (0<<ADATE));
 
 	batteryVoltage = readVoltage();
 
@@ -201,9 +205,7 @@ uint16_t readVoltage(){
 	//Enable power to sense circuit
 	PORTB |= (1<<PORTB1);
 	
-	// IF defines were working, the following is equivalent and easier to understand:
-	//  PRR |= (1<<PRADC);
-	_SFR_IO8(0x25) |= (1<<0);
+	PRR &= ~(0<<PRADC);
 	//Make sure that the ADC is powered and enabled
 	ADCSRA |= (1<<ADEN);
 
