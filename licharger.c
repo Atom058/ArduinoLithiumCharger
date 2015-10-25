@@ -11,7 +11,7 @@ int main ( void ) {
 	while(1){
 		//This loop is running constantly
 
-		if((state>>USBCONNECTED) & 1){
+		if((PINB>>PINB3) & 1){
 			
 			//Turn on circuit power
 			PORTB |= (1<<PORTB4);
@@ -98,14 +98,6 @@ void setup(void) {
 	PORTB = 0; //Disables all lingering outputs and pull-ups
 	DDRB = (1<<DDB0) | (1<<DDB1) | (0<<DDB2) | (0<<DDB3) | (1<<DDB4) | (0<<DDB5);
 
-	if((PINB>>PINB3) & 1){
-
-		//Set start-up USB state
-		state |= (1<<USBCONNECTED);
-
-	}
-
-
 /*Analog to Digital converter settings*/
 	// Set ADC to use 1.1V internal reference and standard right-adjusted results
 	// Set and select ADC1 (pin7) as an input channel and disable as digital
@@ -182,7 +174,8 @@ uint16_t readVoltage(){
 	state &= ~(1<<ADCDONE);
 
 	//Save reading to memory
-	uint16_t reading = ADC;
+	uint16_t reading = (uint16_t) ADCL;
+	reading |= (ADCH<<sizeof(ADCH));
 
 	//Disable power to sense pin
 	PORTB &= ~(1<<PORTB0);
@@ -197,7 +190,7 @@ void sleep(void){
 
 	cli(); //Disable interrupts 
 
-	if(((state>>BATTERYDEPLETED) & 1) && !((state>>USBCONNECTED) & 1)){
+	if(((state>>BATTERYDEPLETED) & 1) && !((PINB>>PINB3) & 1)){
 
 		/*If the battery is depleted and USB is not connected,
 		 	The watchdog (with its voltage checking) should be disabled.
@@ -259,12 +252,11 @@ ISR ( WDT_vect ) {
 
 		//Fool-proofing: check USB-connected pin to make sure that interrupt wasn't faulty
 		//	This is done to make sure power conservation is activated properly
-		state |= (1<<USBCONNECTED);
 
 	} else {
 
 		//Turn of charging stuff
-		state &= ~((1<<USBCONNECTED) | (1<<CHARGING));
+		state &= ~(1<<CHARGING);
 		PORTB &= ~(1<<PORTB0);
 
 		if(batteryVoltage < VLOWLVL){
@@ -298,17 +290,12 @@ ISR ( PCINT0_vect ){
 
 	}
 
-	if((PINB>>PINB3) & 1){
-
-		//Read voltage on PORTB3, if high, usb is connected
-		state |= (1<<USBCONNECTED);
-
-	} else {
+	if(!((PINB>>PINB3) & 1)){
 
 		//Reset all charging logic, USB was removed
-		state &= ~(1<<USBCONNECTED | 1<<CHARGING);
+		state &= ~(1<<CHARGING);
 		PORTB &= ~(1<<PORTB1);
 
-	}
+	} 
 
 }

@@ -29,10 +29,8 @@ void stopWatchdog(void);
 #define VCHARGELVL (uint16_t) 812 //Voltage above which charging will not initiate - 4.0V
 
 //Booleans - Stored in state variable
-#define USBCONNECTED 1
-#define CHARGING 2
-#define BATTERYDEPLETED 3
-#define ADCDONE 4
+#define CHARGING 0
+#define BATTERYDEPLETED 1
 
 //double define these to make code work
 #define PRR _SFR_IO8(0x25)
