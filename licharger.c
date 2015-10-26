@@ -9,40 +9,34 @@ int main ( void ) {
 	setup();
 
 	while(1){
-		//This loop is running constantly
+		//This loop is running continuously
 
 		if((PINB>>PINB3) & 1){
+
+			cli();
+			batteryVoltage = readVoltage();
+			sei();
 			
 			//Turn on circuit power
 			PORTB |= (1<<CIRCUITPIN);
 
-			if( !((state>>CHARGING) & 1) && (batteryVoltage < VCHARGELVL)){
+			//Charging logic
+			
+			if(batteryVoltage > VLOWLVL){
 
-				// If the battery is not yet charging, AND below the charge limit
-				state |= (1<<CHARGING);
+				//battery is no longer considered empty
+				state &= ~(1<<BATTERYDEPLETED);
 
-			} else {
+			}
 
-				//Charging logic
-				
-				if(batteryVoltage > VLOWLVL){
+			if (batteryVoltage < VCHARGELVL){
 
-					//battery is no longer considered empty
-					state &= ~(1<<BATTERYDEPLETED);
+				PORTB |= (1<<CHARGEPIN); //Turn on charging
 
-				}
+			} else if (batteryVoltage >= VHIGHLVL){
 
-				if (batteryVoltage < VCHARGELVL){
-
-					PORTB |= (1<<CHARGEPIN); //Turn on charging
-
-				} else if (batteryVoltage >= VHIGHLVL){
-
-					//If VHIGHLVL has been reached, charging should stop
-					state &= ~(1<<CHARGING);
-					PORTB &= ~(1<<CHARGEPIN);
-
-				}
+				//If VHIGHLVL has been reached, charging should stop
+				PORTB &= ~(1<<CHARGEPIN);
 
 			}
 
@@ -86,10 +80,6 @@ void setup(void) {
 	//	Note: this is not the ADEN bit, so the CONVERTER is still active
 	ACSR &= ~(1<<ACIE); //Disables the interrupt to avoid disturbance during setup
 	ACSR |= (1<<ACD); //Disable Comparator
-
-	//Enable deep sleep, i.e. power-down mode, as default
-	MCUCR &= ~(1<<SM0);
-	MCUCR |= (1<<SM1);
 
 	PRR = 0; //Initialize this as full-on
 
@@ -172,7 +162,7 @@ uint16_t readVoltage(){
 
 	//Save reading to memory
 	uint16_t reading = (uint16_t) ADCL;
-	reading |= (ADCH<<sizeof(ADCH));
+	reading |= (ADCH<<8);
 
 	//Disable power to sense pin
 	PORTB &= ~(1<<VOLTAGESENSEPIN);
@@ -195,8 +185,19 @@ void sleep(void){
 		*/
 		stopWatchdog();
 
+		//Select deep sleep, i.e. power-down mode
+		MCUCR &= ~(1<<SM0);
+		MCUCR |= (1<<SM1);
 
-	} 
+	} else {
+
+		// //Select idle mode, i.e. power-down mode
+		// MCUCR &= ~((1<<SM0) | (1<<SM1));
+		//Select deep sleep, i.e. power-down mode
+		MCUCR &= ~(1<<SM0);
+		MCUCR |= (1<<SM1);
+
+	}
 
 	//ADC off
 	ADCSRA &= ~(1<<ADEN); //Must be disabled before PRADC
@@ -241,10 +242,6 @@ ISR ( WDT_vect ) {
 	//Disable sleep
 	MCUCR &= ~(1<<SE);
 
-	cli();
-	batteryVoltage = readVoltage();
-	sei();
-
 	if((PINB>>PINB3) & 1){
 
 		//Fool-proofing: check USB-connected pin to make sure that interrupt wasn't faulty
@@ -252,8 +249,11 @@ ISR ( WDT_vect ) {
 
 	} else {
 
-		//Turn of charging stuff
-		state &= ~(1<<CHARGING);
+		cli();
+		batteryVoltage = readVoltage();
+		sei();
+
+		//Turn of charging
 		PORTB &= ~(1<<CHARGEPIN);
 
 		if(batteryVoltage < VLOWLVL){
@@ -273,6 +273,8 @@ ISR ( WDT_vect ) {
 
 	}
 
+	wdt_reset();
+
 }
 
 ISR ( PCINT0_vect ){
@@ -289,8 +291,7 @@ ISR ( PCINT0_vect ){
 
 	if(!((PINB>>PINB3) & 1)){
 
-		//Reset all charging logic, USB was removed
-		state &= ~(1<<CHARGING);
+		//Reset charging, USB was removed
 		PORTB &= ~(1<<CHARGEPIN);
 
 	} 

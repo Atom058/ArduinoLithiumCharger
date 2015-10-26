@@ -25,12 +25,11 @@ void stopWatchdog(void);
 		- Charge limit, i.e. level above which new charging will not start, is set at 4.0V, giving 812/1024
 	*/
 #define VLOWLVL (uint16_t) 650 //Voltage where battery is considered depleted
-#define VHIGHLVL (uint16_t) 853 //Charge to this voltage - 4.15V
-#define VCHARGELVL (uint16_t) 812 //Voltage above which charging will not initiate - 4.0V
+#define VHIGHLVL (uint16_t) 853 //853 Charge to this voltage - 4.15V
+#define VCHARGELVL (uint16_t) 812 //812 Voltage above which charging will not initiate - 4.0V
 
 //Booleans - Stored in state variable
-#define CHARGING 0
-#define BATTERYDEPLETED 1
+#define BATTERYDEPLETED 0
 
 //double define these to make code work
 #define PRR _SFR_IO8(0x25)
